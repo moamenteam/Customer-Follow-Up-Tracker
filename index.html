@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Follow-Up Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0f1117;
+    --bg-secondary: #181a24;
+    --bg-card: #1e2030;
+    --bg-hover: #262940;
+    --border: #2a2d3e;
+    --text-primary: #e8eaf0;
+    --text-secondary: #8b8fa3;
+    --text-muted: #5c6078;
+    --accent: #6c5ce7;
+    --accent-glow: rgba(108,92,231,0.25);
+    --success: #00cec9;
+    --success-bg: rgba(0,206,201,0.12);
+    --danger: #ff6b6b;
+    --danger-bg: rgba(255,107,107,0.12);
+    --warning: #feca57;
+    --star-active: #feca57;
+    --star-inactive: #2a2d3e;
+    --radius: 10px;
+    --radius-lg: 16px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+
+  /* ── CONFIG BANNER ── */
+  #config-banner {
+    display: none; position: fixed; top:0; left:0; right:0; z-index:1000;
+    background: linear-gradient(135deg, #6c5ce7, #a855f7);
+    padding: 14px 24px; text-align: center; font-size: 14px; font-weight: 600;
+    cursor: pointer; animation: pulse-banner 2s infinite;
+  }
+  @keyframes pulse-banner { 0%,100%{opacity:1;} 50%{opacity:0.85;} }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 11px 14px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text-primary); font-family: inherit; font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 20px; font-family: inherit; font-size: 13px; font-weight: 600;
+    border: none; border-radius: var(--radius); cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary { background: linear-gradient(135deg, #6c5ce7, #a855f7); color: white; }
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+  .btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-success { background: var(--success); color: #0f1117; }
+  .btn-success:hover { filter: brightness(1.1); }
+  .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(255,107,107,0.2); }
+  .btn-danger:hover { background: rgba(255,107,107,0.2); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-full { width: 100%; }
+
+  .error-msg {
+    background: var(--danger-bg); color: var(--danger); padding: 10px 14px;
+    border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; display: none;
+  }
+
+  /* ── LOGIN ── */
+  #login-page {
+    display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at 20% 50%, rgba(108,92,231,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(0,206,201,0.05) 0%, transparent 50%), var(--bg-primary);
+  }
+  .login-box {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 44px 36px; width: 100%; max-width: 420px; box-shadow: var(--shadow);
+  }
+  .login-box .logo { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 6px;
+    background: linear-gradient(135deg, #6c5ce7, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .login-box .subtitle { text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
+
+  /* ── APP LAYOUT ── */
+  #app-page { display: none; min-height: 100vh; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px; background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50; flex-wrap: wrap; gap: 10px;
+  }
+  .topbar .app-name { font-size: 18px; font-weight: 700;
+    background: linear-gradient(135deg, #6c5ce7, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .user-badge {
+    display: flex; align-items: center; gap: 8px; padding: 5px 12px;
+    background: var(--bg-hover); border-radius: 24px; font-size: 13px; font-weight: 500;
+  }
+  .user-badge .avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #6c5ce7, #a855f7);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white;
+  }
+  .role-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .role-tag.admin { background: var(--accent-glow); color: var(--accent); }
+  .role-tag.employee { background: var(--success-bg); color: var(--success); }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex; gap: 2px; padding: 14px 28px 0; background: var(--bg-secondary);
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .tab-btn {
+    padding: 9px 18px; font-family: inherit; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); background: transparent; border: none;
+    border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text-primary); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .main-content { padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .stat-card .stat-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .stat-value { font-size: 30px; font-weight: 700; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+  .stat-card .stat-value.purple { color: var(--accent); }
+  .stat-card .stat-value.green { color: var(--success); }
+  .stat-card .stat-value.red { color: var(--danger); }
+  .stat-card .stat-value.yellow { color: var(--warning); }
+
+  /* ── TABLE ── */
+  .table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+  .table-header h3 { font-size: 15px; font-weight: 600; }
+  .table-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search-box {
+    padding: 7px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text-primary); font-family: inherit; font-size: 13px; width: 220px; outline: none;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .filter-select {
+    padding: 7px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  table th {
+    text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted);
+    background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+  }
+  table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table tr:last-child td { border-bottom: none; }
+  table tr:hover td { background: var(--bg-hover); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+    border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .status-badge.contacted { background: var(--success-bg); color: var(--success); }
+  .status-badge.pending { background: var(--danger-bg); color: var(--danger); }
+  .status-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* ── STARS ── */
+  .star-rating { display: flex; gap: 2px; }
+  .star-rating .star { cursor: pointer; font-size: 22px; color: var(--star-inactive); transition: color 0.15s, transform 0.15s; user-select: none; }
+  .star-rating .star.active { color: var(--star-active); }
+  .star-rating .star:hover { transform: scale(1.15); }
+  .star-display { display: flex; gap: 1px; }
+  .star-display .star { font-size: 14px; color: var(--star-inactive); }
+  .star-display .star.active { color: var(--star-active); }
+
+  /* ── UPLOAD ── */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius-lg); padding: 40px 28px;
+    text-align: center; cursor: pointer; transition: all 0.3s; background: var(--bg-card); margin-bottom: 20px;
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(108,92,231,0.05); }
+  .upload-zone .upload-icon { font-size: 44px; margin-bottom: 10px; }
+  .upload-zone p { color: var(--text-secondary); font-size: 14px; }
+  .upload-zone .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 28px; width: 100%; max-width: 500px; box-shadow: var(--shadow); max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  .config-modal .form-group input { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .config-help { font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.4; }
+
+  /* ── EMPTY ── */
+  .empty-state { text-align: center; padding: 56px 20px; color: var(--text-secondary); }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 16px; margin-bottom: 6px; color: var(--text-primary); }
+  .empty-state p { font-size: 13px; }
+
+  /* ── TOAST ── */
+  .toast-container { position: fixed; top: 16px; right: 16px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    padding: 10px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+    background: var(--bg-card); border: 1px solid var(--border); box-shadow: var(--shadow);
+    animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 8px;
+  }
+  .toast.success { border-color: var(--success); }
+  .toast.error { border-color: var(--danger); }
+  @keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+
+  .spinner { display:inline-block; width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg);} }
+
+  .phone-link { font-family:'JetBrains Mono',monospace; color:var(--success); text-decoration:none; font-size:12px; }
+  .phone-link:hover { text-decoration:underline; }
+  .notes-cell { max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-secondary); font-size:12px; }
+
+  /* ── USER CARDS (admin) ── */
+  .user-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .user-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .user-card-top { display: flex; align-items: center; gap: 12px; }
+  .user-card-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, #6c5ce7, #a855f7);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .user-card-info { flex: 1; min-width: 0; }
+  .user-card-info .name { font-weight: 600; font-size: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-card-info .email { font-size: 12px; color: var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .user-card .active-badge { font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600; }
+  .user-card .active-badge.active { background: var(--success-bg); color: var(--success); }
+  .user-card .active-badge.inactive { background: var(--danger-bg); color: var(--danger); }
+
+  /* ── DATE FILTER ── */
+  .date-filter { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .date-filter input[type="date"] {
+    padding: 7px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none;
+  }
+
+  @media (max-width: 768px) {
+    .topbar { padding: 10px 14px; }
+    .tab-bar { padding: 10px 14px 0; }
+    .main-content { padding: 16px 14px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    table th, table td { padding: 8px 10px; font-size: 12px; }
+    .search-box { width: 140px; }
+    .login-box { padding: 28px 20px; }
+    .modal { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="config-banner" onclick="openConfigModal()">⚙️ Click here to configure Supabase connection</div>
+<div class="toast-container" id="toasts"></div>
+
+<!-- ===== LOGIN ===== -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="logo">📋 FollowUp</div>
+    <div class="subtitle">Customer Follow-Up Tracker</div>
+    <div class="error-msg" id="login-error"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@company.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="handleLogin()" id="login-btn">Sign In</button>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app-page">
+  <div class="topbar">
+    <span class="app-name">📋 FollowUp</span>
+    <div class="topbar-right">
+      <div class="user-badge">
+        <div class="avatar" id="user-avatar">M</div>
+        <span id="user-name">User</span>
+        <span class="role-tag" id="user-role-tag">employee</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openConfigModal()">⚙️</button>
+      <button class="btn btn-danger btn-sm" onclick="handleLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" data-tab="upload">📤 Upload</button>
+    <button class="tab-btn" data-tab="customers">📞 My Customers</button>
+    <button class="tab-btn admin-only" data-tab="alldata" style="display:none">📊 All Data</button>
+    <button class="tab-btn admin-only" data-tab="users" style="display:none">👥 Manage Users</button>
+  </div>
+
+  <div class="main-content">
+
+    <!-- ── UPLOAD TAB ── -->
+    <div class="tab-panel active" id="panel-upload">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-input').click()">
+        <div class="upload-icon">📁</div>
+        <p>Drop your CSV file here or click to browse</p>
+        <div class="hint">File must have columns: <b>name</b> and <b>phone</b> (or similar)</div>
+        <input type="file" id="csv-input" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileUpload(event)">
+      </div>
+      <div id="upload-preview" style="display:none"></div>
+    </div>
+
+    <!-- ── MY CUSTOMERS TAB ── -->
+    <div class="tab-panel" id="panel-customers">
+      <div class="stats-row" id="stats-row"></div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>My Customers</h3>
+          <div class="table-tools">
+            <input type="date" id="date-filter" onchange="loadMyCustomers()">
+            <input type="text" class="search-box" placeholder="Search..." oninput="filterMyCustomers(this.value)">
+          </div>
+        </div>
+        <div id="customer-table-body">
+          <div class="empty-state"><div class="empty-icon">📭</div><h3>No customers yet</h3><p>Upload a CSV to get started</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ALL DATA TAB (admin) ── -->
+    <div class="tab-panel" id="panel-alldata">
+      <div class="stats-row" id="admin-stats-row"></div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>All Employee Data</h3>
+          <div class="table-tools">
+            <select class="filter-select" id="admin-emp-filter" onchange="loadAllData()">
+              <option value="">All Employees</option>
+            </select>
+            <input type="date" id="admin-date-filter" onchange="loadAllData()">
+            <input type="text" class="search-box" placeholder="Search..." id="admin-search" oninput="filterAllData(this.value)">
+          </div>
+        </div>
+        <div id="alldata-table-body">
+          <div class="empty-state"><div class="empty-icon">📊</div><h3>No data yet</h3></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MANAGE USERS TAB (admin) ── -->
+    <div class="tab-panel" id="panel-users">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+        <h3>Employee Accounts</h3>
+        <button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">+ Add Employee</button>
+      </div>
+      <div class="user-cards" id="user-cards-container"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== ACTION MODAL ===== -->
+<div class="modal-overlay" id="action-modal">
+  <div class="modal">
+    <h2>📞 Record Follow-Up</h2>
+    <div id="action-customer-info" style="color:var(--text-secondary); margin-bottom:18px; font-size:14px;"></div>
+    <div class="form-group">
+      <label>Contacted?</label>
+      <select id="action-contacted">
+        <option value="false">❌ Not Contacted</option>
+        <option value="true">✅ Contacted</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Guest Rating</label>
+      <div class="star-rating" id="action-stars">
+        <span class="star" onclick="setStars(1)">★</span>
+        <span class="star" onclick="setStars(2)">★</span>
+        <span class="star" onclick="setStars(3)">★</span>
+        <span class="star" onclick="setStars(4)">★</span>
+        <span class="star" onclick="setStars(5)">★</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="action-notes" rows="3" placeholder="Any notes about this follow-up..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('action-modal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveAction()" id="save-action-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CREATE USER MODAL (admin) ===== -->
+<div class="modal-overlay" id="create-user-modal">
+  <div class="modal">
+    <h2>👤 Add New Employee</h2>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="new-user-name" placeholder="Employee name">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="new-user-email" placeholder="employee@company.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="text" id="new-user-password" placeholder="Initial password (min 6 chars)">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="new-user-role">
+        <option value="employee">Employee</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('create-user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createUser()" id="create-user-btn">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EDIT USER MODAL (admin) ===== -->
+<div class="modal-overlay" id="edit-user-modal">
+  <div class="modal">
+    <h2>✏️ Edit Employee</h2>
+    <input type="hidden" id="edit-user-id">
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="edit-user-name">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="edit-user-role">
+        <option value="employee">Employee</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="edit-user-active">
+        <option value="true">Active</option>
+        <option value="false">Deactivated</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('edit-user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONFIG MODAL ===== -->
+<div class="modal-overlay" id="config-modal">
+  <div class="modal config-modal">
+    <h2>⚙️ Supabase Configuration</h2>
+    <p style="color:var(--text-secondary); font-size:13px; margin-bottom:20px;">
+      Find these in Supabase → Settings → API
+    </p>
+    <div class="form-group">
+      <label>Supabase URL</label>
+      <input type="text" id="config-url" placeholder="https://your-project.supabase.co">
+    </div>
+    <div class="form-group">
+      <label>Supabase Anon Key</label>
+      <input type="text" id="config-key" placeholder="eyJhbGciOiJIUzI1NiIs...">
+    </div>
+    <div class="form-group">
+      <label>Service Role Key <span style="color:var(--danger)">(Admin only - for user creation)</span></label>
+      <input type="text" id="config-service-key" placeholder="eyJhbGciOiJIUzI1NiIs... (optional)">
+      <div class="config-help">Required only for creating new employee accounts. Found under "service_role" key.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('config-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveConfig()" style="width:auto">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+
+<script>
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let sb = null;
+let sbAdmin = null; // service-role client for user creation
+let currentUser = null;
+let currentProfile = null;
+let myCustomers = [];
+let allDataCustomers = [];
+let selectedStars = 0;
+let actionCustomerId = null;
+
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+function getConfig() {
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  const skey = localStorage.getItem('sb_skey');
+  return (url && key) ? { url, key, skey } : null;
+}
+
+function initSupabase() {
+  const c = getConfig();
+  if (!c) { document.getElementById('config-banner').style.display='block'; return false; }
+  document.getElementById('config-banner').style.display='none';
+  sb = window.supabase.createClient(c.url, c.key);
+  if (c.skey) {
+    sbAdmin = window.supabase.createClient(c.url, c.skey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+  }
+  return true;
+}
+
+function openConfigModal() {
+  const c = getConfig();
+  if (c) {
+    document.getElementById('config-url').value = c.url || '';
+    document.getElementById('config-key').value = c.key || '';
+    document.getElementById('config-service-key').value = c.skey || '';
+  }
+  openModal('config-modal');
+}
+
+function saveConfig() {
+  const url = document.getElementById('config-url').value.trim().replace(/\/$/,'');
+  const key = document.getElementById('config-key').value.trim();
+  const skey = document.getElementById('config-service-key').value.trim();
+  if (!url || !key) return toast('Fill in URL and Anon Key','error');
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  if (skey) localStorage.setItem('sb_skey', skey);
+  else localStorage.removeItem('sb_skey');
+  toast('Configuration saved!','success');
+  closeModal('config-modal');
+  initSupabase();
+  checkSession();
+}
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+async function handleLogin() {
+  if (!sb) return toast('Configure Supabase first','error');
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return showLoginError('Fill in all fields');
+  const btn = document.getElementById('login-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Signing in...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled=false; btn.textContent='Sign In';
+  if (error) return showLoginError(error.message);
+  await enterApp(data.user);
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  currentUser=null; currentProfile=null;
+  document.getElementById('app-page').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent=msg; el.style.display='block';
+  el.style.background='var(--danger-bg)'; el.style.color='var(--danger)';
+}
+
+async function checkSession() {
+  if (!sb) return;
+  const { data:{session} } = await sb.auth.getSession();
+  if (session) await enterApp(session.user);
+}
+
+async function enterApp(user) {
+  currentUser = user;
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app-page').style.display='block';
+  document.getElementById('login-error').style.display='none';
+
+  const { data:profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile || { full_name: user.email, role:'employee' };
+
+  const name = currentProfile.full_name || user.email;
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+  const rt = document.getElementById('user-role-tag');
+  rt.textContent = currentProfile.role; rt.className = 'role-tag ' + currentProfile.role;
+
+  // Set date filter to today
+  document.getElementById('date-filter').value = new Date().toISOString().split('T')[0];
+
+  if (currentProfile.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display='');
+    document.getElementById('admin-date-filter').value = new Date().toISOString().split('T')[0];
+    await loadUsers();
+    await loadAllData();
+  }
+  await loadMyCustomers();
+}
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+document.getElementById('tab-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+});
+
+// ═══════════════════════════════════════
+// MY CUSTOMERS
+// ═══════════════════════════════════════
+async function loadMyCustomers() {
+  const dateVal = document.getElementById('date-filter').value;
+  let query = sb.from('customers').select('*').eq('uploaded_by', currentUser.id).order('created_at', {ascending:false});
+  if (dateVal) query = query.eq('upload_date', dateVal);
+  const { data, error } = await query;
+  if (error) return toast('Error: '+error.message,'error');
+  myCustomers = data || [];
+  renderMyStats(myCustomers);
+  renderMyTable(myCustomers);
+}
+
+function renderMyStats(list) {
+  const total = list.length;
+  const contacted = list.filter(c => c.contacted).length;
+  const pending = total - contacted;
+  const rated = list.filter(c => c.stars);
+  const avg = rated.length ? (rated.reduce((s,c)=>s+c.stars,0)/rated.length).toFixed(1) : '—';
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value purple">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Contacted</div><div class="stat-value green">${contacted}</div></div>
+    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value red">${pending}</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Rating</div><div class="stat-value yellow">${avg}</div></div>`;
+}
+
+function renderMyTable(list) {
+  if (!list.length) {
+    document.getElementById('customer-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3>No customers</h3><p>Upload a CSV for today</p></div>';
+    return;
+  }
+  let h = `<table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Status</th><th>Rating</th><th>Notes</th><th>Action</th></tr></thead><tbody>`;
+  list.forEach((c,i) => {
+    h += `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td style="font-weight:600">${esc(c.name)}</td>
+      <td><a class="phone-link" href="tel:${c.phone}">${esc(c.phone)}</a></td>
+      <td><span class="status-badge ${c.contacted?'contacted':'pending'}"><span class="dot"></span>${c.contacted?'Contacted':'Pending'}</span></td>
+      <td>${starsHtml(c.stars||0)}</td>
+      <td class="notes-cell" title="${esc(c.notes||'')}">${esc(c.notes||'—')}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="openActionModal(${c.id},'${esc(c.name)}','${esc(c.phone)}',${c.contacted},'${c.stars||0}',\`${esc(c.notes||'')}\`)">✏️ Action</button></td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('customer-table-body').innerHTML = h;
+}
+
+function filterMyCustomers(q) {
+  q = q.toLowerCase();
+  renderMyTable(myCustomers.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q)));
+}
+
+// ═══════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════
+function openActionModal(id, name, phone, contacted, stars, notes) {
+  actionCustomerId = id;
+  document.getElementById('action-customer-info').textContent = `${name}  •  ${phone}`;
+  document.getElementById('action-contacted').value = contacted ? 'true' : 'false';
+  document.getElementById('action-notes').value = notes || '';
+  setStars(parseInt(stars) || 0);
+  openModal('action-modal');
+}
+
+function setStars(n) {
+  selectedStars = n;
+  document.querySelectorAll('#action-stars .star').forEach((s,i) => s.classList.toggle('active', i<n));
+}
+
+async function saveAction() {
+  const btn = document.getElementById('save-action-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  const { error } = await sb.from('customers').update({
+    contacted: document.getElementById('action-contacted').value === 'true',
+    stars: selectedStars || null,
+    notes: document.getElementById('action-notes').value.trim() || null,
+    action_at: new Date().toISOString()
+  }).eq('id', actionCustomerId);
+  btn.disabled=false; btn.textContent='Save';
+  if (error) return toast('Error: '+error.message,'error');
+  toast('Action saved!','success');
+  closeModal('action-modal');
+  await loadMyCustomers();
+  if (currentProfile.role==='admin') await loadAllData();
+}
+
+// ═══════════════════════════════════════
+// CSV UPLOAD
+// ═══════════════════════════════════════
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: function(results) {
+      const rows = results.data;
+      if (!rows.length) return toast('File is empty','error');
+      const headers = Object.keys(rows[0]);
+      const nameCol = headers.find(h => /name/i.test(h));
+      const phoneCol = headers.find(h => /phone|mobile|number|tel/i.test(h));
+      if (!nameCol || !phoneCol) return toast('CSV must have "name" and "phone" columns','error');
+      const customers = rows.filter(r => r[nameCol] && r[phoneCol]).map(r => ({
+        name: r[nameCol].toString().trim(), phone: r[phoneCol].toString().trim()
+      }));
+      if (!customers.length) return toast('No valid rows found','error');
+
+      let html = `<div class="table-wrap"><div class="table-header">
+        <h3>Preview (${customers.length} customers)</h3>
+        <button class="btn btn-success btn-sm" onclick="confirmUpload()" id="confirm-upload-btn">✅ Upload All</button>
+      </div><table><thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead><tbody>`;
+      customers.slice(0,25).forEach((c,i) => { html += `<tr><td>${i+1}</td><td>${esc(c.name)}</td><td>${esc(c.phone)}</td></tr>`; });
+      if (customers.length > 25) html += `<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">...and ${customers.length-25} more</td></tr>`;
+      html += '</tbody></table></div>';
+
+      document.getElementById('upload-preview').innerHTML = html;
+      document.getElementById('upload-preview').style.display = 'block';
+      window._pendingUpload = customers;
+    },
+    error: function(err) { toast('Error reading file: '+err.message,'error'); }
+  });
+}
+
+async function confirmUpload() {
+  const customers = window._pendingUpload;
+  if (!customers) return;
+  const btn = document.getElementById('confirm-upload-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Uploading...';
+
+  const payload = customers.map(c => ({
+    name: c.name, phone: c.phone,
+    uploaded_by: currentUser.id,
+    upload_date: new Date().toISOString().split('T')[0]
+  }));
+
+  // Upload in batches of 500
+  for (let i=0; i<payload.length; i+=500) {
+    const batch = payload.slice(i, i+500);
+    const { error } = await sb.from('customers').insert(batch);
+    if (error) { btn.disabled=false; btn.textContent='✅ Upload All'; return toast('Error: '+error.message,'error'); }
+  }
+
+  toast(`✅ ${customers.length} customers uploaded!`,'success');
+  document.getElementById('upload-preview').style.display='none';
+  document.getElementById('csv-input').value='';
+  window._pendingUpload = null;
+  btn.disabled=false; btn.textContent='✅ Upload All';
+  // Set date filter to today and load
+  document.getElementById('date-filter').value = new Date().toISOString().split('T')[0];
+  await loadMyCustomers();
+  if (currentProfile.role==='admin') await loadAllData();
+}
+
+// Drag & drop
+const uz = document.getElementById('upload-zone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragover'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('dragover'));
+uz.addEventListener('drop', e => {
+  e.preventDefault(); uz.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) { const dt = new DataTransfer(); dt.items.add(file); document.getElementById('csv-input').files = dt.files; handleFileUpload({target:document.getElementById('csv-input')}); }
+});
+
+// ═══════════════════════════════════════
+// ALL DATA (admin)
+// ═══════════════════════════════════════
+async function loadAllData() {
+  const empFilter = document.getElementById('admin-emp-filter').value;
+  const dateFilter = document.getElementById('admin-date-filter').value;
+
+  let query = sb.from('customers').select('*, profiles:uploaded_by(full_name)').order('created_at',{ascending:false});
+  if (empFilter) query = query.eq('uploaded_by', empFilter);
+  if (dateFilter) query = query.eq('upload_date', dateFilter);
+
+  const { data, error } = await query;
+  if (error) return toast('Error: '+error.message,'error');
+  allDataCustomers = data || [];
+  renderAdminStats(allDataCustomers);
+  renderAllDataTable(allDataCustomers);
+}
+
+function renderAdminStats(list) {
+  const total = list.length;
+  const contacted = list.filter(c=>c.contacted).length;
+  const pending = total-contacted;
+  const rated = list.filter(c=>c.stars);
+  const avg = rated.length ? (rated.reduce((s,c)=>s+c.stars,0)/rated.length).toFixed(1) : '—';
+  document.getElementById('admin-stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value purple">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Contacted</div><div class="stat-value green">${contacted}</div></div>
+    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value red">${pending}</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Rating</div><div class="stat-value yellow">${avg}</div></div>`;
+}
+
+function renderAllDataTable(list) {
+  if (!list.length) {
+    document.getElementById('alldata-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><h3>No data</h3></div>';
+    return;
+  }
+  let h = `<table><thead><tr><th>#</th><th>Employee</th><th>Customer</th><th>Phone</th><th>Status</th><th>Rating</th><th>Notes</th><th>Date</th></tr></thead><tbody>`;
+  list.forEach((c,i) => {
+    h += `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td style="font-weight:500;color:var(--accent)">${esc(c.profiles?.full_name||'—')}</td>
+      <td style="font-weight:600">${esc(c.name)}</td>
+      <td><a class="phone-link" href="tel:${c.phone}">${esc(c.phone)}</a></td>
+      <td><span class="status-badge ${c.contacted?'contacted':'pending'}"><span class="dot"></span>${c.contacted?'Contacted':'Pending'}</span></td>
+      <td>${starsHtml(c.stars||0)}</td>
+      <td class="notes-cell" title="${esc(c.notes||'')}">${esc(c.notes||'—')}</td>
+      <td style="color:var(--text-muted);font-size:12px">${c.upload_date||'—'}</td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('alldata-table-body').innerHTML = h;
+}
+
+function filterAllData(q) {
+  q = q.toLowerCase();
+  renderAllDataTable(allDataCustomers.filter(c =>
+    c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.profiles?.full_name||'').toLowerCase().includes(q)
+  ));
+}
+
+// ═══════════════════════════════════════
+// MANAGE USERS (admin)
+// ═══════════════════════════════════════
+let allProfiles = [];
+
+async function loadUsers() {
+  const { data, error } = await sb.from('profiles').select('*').order('created_at');
+  if (error) return toast('Error loading users','error');
+  allProfiles = data || [];
+
+  // Populate employee filter dropdown
+  const sel = document.getElementById('admin-emp-filter');
+  sel.innerHTML = '<option value="">All Employees</option>';
+  allProfiles.filter(p => p.role==='employee').forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${esc(p.full_name)}</option>`;
+  });
+
+  renderUserCards();
+}
+
+function renderUserCards() {
+  const container = document.getElementById('user-cards-container');
+  if (!allProfiles.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><h3>No users</h3></div>'; return; }
+
+  container.innerHTML = allProfiles.map(p => `
+    <div class="user-card">
+      <div class="user-card-top">
+        <div class="user-card-avatar">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
+        <div class="user-card-info">
+          <div class="name">${esc(p.full_name)}</div>
+          <div class="email">${esc(p.id.substring(0,8))}...</div>
+        </div>
+        <span class="role-tag ${p.role}">${p.role}</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="active-badge ${p.is_active!==false?'active':'inactive'}">${p.is_active!==false?'● Active':'● Inactive'}</span>
+        <div class="user-card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openEditUser('${p.id}')">✏️ Edit</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openCreateUserModal() {
+  if (!sbAdmin) return toast('Add Service Role Key in ⚙️ settings to create users','error');
+  document.getElementById('new-user-name').value='';
+  document.getElementById('new-user-email').value='';
+  document.getElementById('new-user-password').value='';
+  document.getElementById('new-user-role').value='employee';
+  openModal('create-user-modal');
+}
+
+async function createUser() {
+  if (!sbAdmin) return toast('Service Role Key required','error');
+  const name = document.getElementById('new-user-name').value.trim();
+  const email = document.getElementById('new-user-email').value.trim();
+  const password = document.getElementById('new-user-password').value;
+  const role = document.getElementById('new-user-role').value;
+  if (!name||!email||!password) return toast('Fill all fields','error');
+  if (password.length < 6) return toast('Password must be 6+ characters','error');
+
+  const btn = document.getElementById('create-user-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+
+  const { data, error } = await sbAdmin.auth.admin.createUser({
+    email, password,
+    email_confirm: true,
+    user_metadata: { full_name: name, role }
+  });
+
+  btn.disabled=false; btn.textContent='Create Account';
+  if (error) return toast('Error: '+error.message,'error');
+
+  toast(`✅ Account created for ${name}`,'success');
+  closeModal('create-user-modal');
+  await loadUsers();
+}
+
+function openEditUser(uid) {
+  const p = allProfiles.find(u => u.id === uid);
+  if (!p) return;
+  document.getElementById('edit-user-id').value = uid;
+  document.getElementById('edit-user-name').value = p.full_name;
+  document.getElementById('edit-user-role').value = p.role;
+  document.getElementById('edit-user-active').value = (p.is_active!==false).toString();
+  openModal('edit-user-modal');
+}
+
+async function updateUser() {
+  const uid = document.getElementById('edit-user-id').value;
+  const { error } = await sb.from('profiles').update({
+    full_name: document.getElementById('edit-user-name').value.trim(),
+    role: document.getElementById('edit-user-role').value,
+    is_active: document.getElementById('edit-user-active').value === 'true'
+  }).eq('id', uid);
+  if (error) return toast('Error: '+error.message,'error');
+  toast('User updated!','success');
+  closeModal('edit-user-modal');
+  await loadUsers();
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function starsHtml(n) {
+  let h='<div class="star-display">';
+  for(let i=1;i<=5;i++) h+=`<span class="star ${i<=n?'active':''}">★</span>`;
+  return h+'</div>';
+}
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function toast(msg,type='info') {
+  const c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`${type==='success'?'✅':type==='error'?'❌':'ℹ️'} ${msg}`;
+  c.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';setTimeout(()=>el.remove(),300);},3500);
+}
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if(e.target===ov) ov.classList.remove('active'); });
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+if (initSupabase()) checkSession();
+</script>
+</body>
+</html>
