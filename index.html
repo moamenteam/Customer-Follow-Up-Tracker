@@ -141,6 +141,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
       <h3>My Customers</h3>
       <div class="tt">
         <input type="date" class="fs" id="df" onchange="loadMy()">
+        <select class="fs" id="c2f" onchange="filterByC2()"><option value="">All Categories</option></select>
         <input type="text" class="sb" placeholder="Search..." oninput="filterMy(this.value)">
       </div>
     </div>
@@ -156,6 +157,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
       <h3>All Employee Data</h3>
       <div class="tt">
         <select class="fs" id="aef" onchange="loadAll()"><option value="">All Employees</option></select>
+        <select class="fs" id="ac2f" onchange="filterAllC2()"><option value="">All Categories</option></select>
         <input type="date" class="fs" id="adf" onchange="loadAll()">
         <input type="text" class="sb" placeholder="Search..." id="asb" oninput="filterAll(this.value)">
       </div>
@@ -276,6 +278,7 @@ function handleFile(event){
         if(lh==='cashier')colMap.cashier=i;
         if(lh==='session start date')colMap.date=i;
         if(lh==='category')colMap.category=i;
+        if(lh==='category 2')colMap.category2=i;
         if(lh==='total amount')colMap.amount=i;
         if(lh==='order ref')colMap.order=i;
       });
@@ -298,6 +301,7 @@ function handleFile(event){
         const cashier=colMap.cashier!=null?String(row[colMap.cashier]||'').trim():'';
         const amount=colMap.amount!=null?parseFloat(row[colMap.amount])||0:0;
         const cat=colMap.category!=null?String(row[colMap.category]||'').trim():'';
+        const cat2=colMap.category2!=null?String(row[colMap.category2]||'').trim():'';
         let saleDate='';
         if(colMap.date!=null&&row[colMap.date]){
           const d=row[colMap.date];
@@ -305,21 +309,23 @@ function handleFile(event){
         }
         
         if(!customers[phone]){
-          customers[phone]={name,phone,branch,cashier,sale_date:saleDate,total_amount:amount,categories:new Set(),orders:new Set()};
+          customers[phone]={name,phone,branch,cashier,sale_date:saleDate,total_amount:amount,categories:new Set(),categories2:new Set(),orders:new Set()};
         }else{
           customers[phone].total_amount+=amount;
           if(!customers[phone].name&&name)customers[phone].name=name;
         }
         if(cat)customers[phone].categories.add(cat);
+        if(cat2)customers[phone].categories2.add(cat2);
         if(colMap.order!=null&&row[colMap.order])customers[phone].orders.add(String(row[colMap.order]));
       }
       
       const list=Object.values(customers).map(c=>({
         ...c,
         categories:[...c.categories].slice(0,3).join(', '),
+        category2:[...c.categories2].slice(0,3).join(', '),
         order_count:c.orders.size,
         total_amount:Math.round(c.total_amount*100)/100
-      }));
+      })).filter(c=>c.total_amount>=100);
       
       if(!list.length)return toast('No customers with phone found','er');
       showPreview(list);
@@ -345,10 +351,10 @@ function parseSimpleCSV(raw){
 }
 
 function showPreview(list){
-  let h=`<div class="tw"><div class="th"><h3>Preview: ${list.length} unique customers</h3><button class="btn bok bsm" onclick="confirmUpload()" id="cub2">✅ Upload All</button></div>
-  <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Branch</th><th>Amount</th><th>Categories</th></tr></thead><tbody>`;
-  list.slice(0,30).forEach((c,i)=>{h+=`<tr><td style="color:var(--tm)">${i+1}</td><td style="font-weight:600">${esc(c.name)}</td><td class="pl">${esc(c.phone)}</td><td><span class="brn">${esc(c.branch||'—')}</span></td><td class="amt">${c.total_amount?c.total_amount.toFixed(2)+' SAR':'—'}</td><td class="nc">${esc(c.categories||'—')}</td></tr>`});
-  if(list.length>30)h+=`<tr><td colspan="6" style="text-align:center;color:var(--tm)">...and ${list.length-30} more</td></tr>`;
+  let h=`<div class="tw"><div class="th"><h3>Preview: ${list.length} unique customers (≥100 SAR)</h3><button class="btn bok bsm" onclick="confirmUpload()" id="cub2">✅ Upload All</button></div>
+  <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Branch</th><th>Amount</th><th>Category</th><th>Category 2</th></tr></thead><tbody>`;
+  list.slice(0,30).forEach((c,i)=>{h+=`<tr><td style="color:var(--tm)">${i+1}</td><td style="font-weight:600">${esc(c.name)}</td><td class="pl">${esc(c.phone)}</td><td><span class="brn">${esc(c.branch||'—')}</span></td><td class="amt">${c.total_amount?c.total_amount.toFixed(2)+' SAR':'—'}</td><td class="nc">${esc(c.categories||'—')}</td><td class="nc">${esc(c.category2||'—')}</td></tr>`});
+  if(list.length>30)h+=`<tr><td colspan="7" style="text-align:center;color:var(--tm)">...and ${list.length-30} more</td></tr>`;
   h+='</tbody></table></div></div>';
   document.getElementById('uprev').innerHTML=h;document.getElementById('uprev').style.display='block';
   window._pending=list;
@@ -358,7 +364,7 @@ async function confirmUpload(){
   const list=window._pending;if(!list)return;
   const btn=document.getElementById('cub2');btn.disabled=true;btn.innerHTML='<span class="sp"></span> Uploading...';
   const today=new Date().toISOString().split('T')[0];
-  const payload=list.map(c=>({name:c.name,phone:c.phone,branch:c.branch||null,cashier:c.cashier||null,sale_date:c.sale_date||today,total_amount:c.total_amount||0,categories:c.categories||null,order_count:c.order_count||1,uploaded_by:user.id,upload_date:today}));
+  const payload=list.map(c=>({name:c.name,phone:c.phone,branch:c.branch||null,cashier:c.cashier||null,sale_date:c.sale_date||today,total_amount:c.total_amount||0,categories:c.categories||null,category2:c.category2||null,order_count:c.order_count||1,uploaded_by:user.id,upload_date:today}));
   for(let i=0;i<payload.length;i+=500){
     const batch=payload.slice(i,i+500);
     const{error}=await sb.from('customers').insert(batch);
@@ -383,7 +389,14 @@ async function loadMy(){
   let q=sb.from('customers').select('*').eq('uploaded_by',user.id).order('created_at',{ascending:false});
   if(d)q=q.eq('upload_date',d);
   const{data,error}=await q;if(error)return toast('Error: '+error.message,'er');
-  myCust=data||[];renderStats(myCust,'stats');renderTable(myCust,'ctb',false)}
+  myCust=data||[];
+  // Populate category2 filter
+  const c2s=new Set();myCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
+  const sel=document.getElementById('c2f');const cur=sel.value;sel.innerHTML='<option value="">All Categories</option>';
+  [...c2s].sort().forEach(v=>{sel.innerHTML+=`<option value="${esc(v)}">${esc(v)}</option>`});sel.value=cur;
+  renderStats(myCust,'stats');renderTable(myCust,'ctb',false)}
+
+function filterByC2(){const v=document.getElementById('c2f').value;if(!v){renderTable(myCust,'ctb',false);return}renderTable(myCust.filter(c=>(c.category2||'').includes(v)),'ctb',false)}
 
 function renderStats(list,id){
   const t=list.length,c=list.filter(x=>x.contacted).length,p=t-c;
@@ -398,7 +411,7 @@ function renderStats(list,id){
 
 function renderTable(list,id,showEmp){
   if(!list.length){document.getElementById(id).innerHTML='<div class="es"><div class="ei">📭</div><h3>No customers</h3></div>';return}
-  let h=`<div style="overflow-x:auto"><table><thead><tr><th>#</th>${showEmp?'<th>Employee</th>':''}<th>Name</th><th>Phone</th><th>Branch</th><th>Amount</th><th>Status</th><th>Rating</th><th>Notes</th><th>Action</th></tr></thead><tbody>`;
+  let h=`<div style="overflow-x:auto"><table><thead><tr><th>#</th>${showEmp?'<th>Employee</th>':''}<th>Name</th><th>Phone</th><th>Branch</th><th>Amount</th><th>Cat 2</th><th>Status</th><th>Rating</th><th>Notes</th><th>Action</th></tr></thead><tbody>`;
   list.forEach((c,i)=>{
     h+=`<tr>
     <td style="color:var(--tm)">${i+1}</td>
@@ -407,6 +420,7 @@ function renderTable(list,id,showEmp){
     <td><a class="pl" href="tel:${c.phone}">${esc(c.phone)}</a></td>
     <td><span class="brn">${esc(c.branch||'—')}</span></td>
     <td class="amt">${c.total_amount?Number(c.total_amount).toFixed(2):'—'}</td>
+    <td class="nc" title="${esc(c.category2||'')}">${esc(c.category2||'—')}</td>
     <td><span class="badge ${c.contacted?'y':'n'}"><span class="dot"></span>${c.contacted?'Done':'Pending'}</span></td>
     <td>${stHtml(c.stars||0)}</td>
     <td class="nc" title="${esc(c.notes||'')}">${esc(c.notes||'—')}</td>
@@ -414,7 +428,7 @@ function renderTable(list,id,showEmp){
     </tr>`});
   h+='</tbody></table></div>';document.getElementById(id).innerHTML=h}
 
-function filterMy(q){q=q.toLowerCase();renderTable(myCust.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||((c.branch||'').toLowerCase().includes(q))),'ctb',false)}
+function filterMy(q){q=q.toLowerCase();const c2=document.getElementById('c2f').value;let f=myCust;if(c2)f=f.filter(c=>(c.category2||'').includes(c2));if(q)f=f.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.branch||'').toLowerCase().includes(q)||(c.category2||'').toLowerCase().includes(q));renderTable(f,'ctb',false)}
 
 // ═══════ ACTIONS ═══════
 function openAct(id,n,p,ct,st,nt){actId=id;document.getElementById('aci').textContent=`${n}  •  ${p}`;document.getElementById('ac').value=ct?'true':'false';document.getElementById('an').value=nt||'';setSt(parseInt(st)||0);openM('action-modal')}
@@ -427,8 +441,14 @@ async function loadAll(){
   let q=sb.from('customers').select('*,profiles:uploaded_by(full_name)').order('created_at',{ascending:false});
   if(ef)q=q.eq('uploaded_by',ef);if(df)q=q.eq('upload_date',df);
   const{data,error}=await q;if(error)return toast('Error: '+error.message,'er');
-  allCust=data||[];renderStats(allCust,'astats');renderTable(allCust,'atb',true)}
-function filterAll(q){q=q.toLowerCase();renderTable(allCust.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.profiles?.full_name||'').toLowerCase().includes(q)||(c.branch||'').toLowerCase().includes(q)),'atb',true)}
+  allCust=data||[];
+  // Populate admin category2 filter
+  const c2s=new Set();allCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
+  const sel=document.getElementById('ac2f');const cur=sel.value;sel.innerHTML='<option value="">All Categories</option>';
+  [...c2s].sort().forEach(v=>{sel.innerHTML+=`<option value="${esc(v)}">${esc(v)}</option>`});sel.value=cur;
+  renderStats(allCust,'astats');renderTable(allCust,'atb',true)}
+function filterAllC2(){const v=document.getElementById('ac2f').value;if(!v){renderTable(allCust,'atb',true);return}renderTable(allCust.filter(c=>(c.category2||'').includes(v)),'atb',true)}
+function filterAll(q){q=q.toLowerCase();renderTable(allCust.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.profiles?.full_name||'').toLowerCase().includes(q)||(c.branch||'').toLowerCase().includes(q)||(c.category2||'').toLowerCase().includes(q)),'atb',true)}
 
 // ═══════ USERS (admin) ═══════
 async function loadUsers(){
