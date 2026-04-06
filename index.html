@@ -89,7 +89,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
 </style>
 </head>
 <body>
-<div id="config-banner" onclick="openM('config-modal')">⚙️ Click here to configure Supabase</div>
+<div id="config-banner" onclick="openM('config-modal')">⚙️ Supabase not configured — check the URL and Key in the code</div>
 <div class="tc" id="toasts"></div>
 
 <!-- LOGIN -->
@@ -110,7 +110,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
   <span class="an">📋 FollowUp</span>
   <div class="tr">
     <div class="ub"><div class="av" id="ua">M</div><span id="un">User</span><span class="rt" id="ur">employee</span></div>
-    <button class="btn bs bsm" onclick="openM('config-modal')">⚙️</button>
+    <button class="btn bs bsm ao" onclick="openM('config-modal')" style="display:none">⚙️</button>
     <button class="btn bno bsm" onclick="doLogout()">Logout</button>
   </div>
 </div>
@@ -141,7 +141,9 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
       <h3>My Customers</h3>
       <div class="tt">
         <input type="date" class="fs" id="df" onchange="loadMy()">
-        <select class="fs" id="c2f" onchange="filterByC2()"><option value="">All Categories</option></select>
+        <select class="fs" id="msort" onchange="applyMyFilters()"><option value="amount_desc">💰 Highest First</option><option value="amount_asc">💰 Lowest First</option><option value="name">🔤 Name A-Z</option></select>
+        <select class="fs" id="c1f" onchange="applyMyFilters()"><option value="">All Types</option></select>
+        <select class="fs" id="c2f" onchange="applyMyFilters()"><option value="">All Categories</option></select>
         <input type="text" class="sb" placeholder="Search..." oninput="filterMy(this.value)">
       </div>
     </div>
@@ -157,7 +159,8 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
       <h3>All Employee Data</h3>
       <div class="tt">
         <select class="fs" id="aef" onchange="loadAll()"><option value="">All Employees</option></select>
-        <select class="fs" id="ac2f" onchange="filterAllC2()"><option value="">All Categories</option></select>
+        <select class="fs" id="asort" onchange="applyAllFilters()"><option value="amount_desc">💰 Highest</option><option value="amount_asc">💰 Lowest</option><option value="name">🔤 A-Z</option></select>
+        <select class="fs" id="ac2f" onchange="applyAllFilters()"><option value="">All Categories</option></select>
         <input type="date" class="fs" id="adf" onchange="loadAll()">
         <input type="text" class="sb" placeholder="Search..." id="asb" oninput="filterAll(this.value)">
       </div>
@@ -213,12 +216,10 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
 <!-- CONFIG MODAL -->
 <div class="mo" id="config-modal">
 <div class="md cm">
-  <h2>⚙️ Supabase Config</h2>
-  <p style="color:var(--t2);font-size:12px;margin-bottom:16px">Supabase → Settings → API</p>
-  <div class="fg"><label>Supabase URL</label><input type="text" id="cu" placeholder="https://xxx.supabase.co"></div>
-  <div class="fg"><label>Anon Key</label><input type="text" id="ck" placeholder="eyJhbGci..."></div>
-  <div class="fg"><label>Service Role Key <span style="color:var(--no)">(admin only)</span></label><input type="text" id="cs" placeholder="eyJhbGci... (for creating users)"><div class="ch">Required for creating employee accounts</div></div>
-  <div class="ma"><button class="btn bs" onclick="closeM('config-modal')">Cancel</button><button class="btn bp" onclick="saveCfg()" style="width:auto">Save & Connect</button></div>
+  <h2>⚙️ Admin Config</h2>
+  <p style="color:var(--t2);font-size:12px;margin-bottom:16px">Only needed for creating employee accounts</p>
+  <div class="fg"><label>Service Role Key</label><input type="text" id="cs" placeholder="eyJhbGci..."><div class="ch">Supabase → Settings → API → service_role key. Only store this on YOUR device.</div></div>
+  <div class="ma"><button class="btn bs" onclick="closeM('config-modal')">Cancel</button><button class="btn bp" onclick="saveCfg()" style="width:auto">Save</button></div>
 </div></div>
 
 <!-- SheetJS for Excel parsing -->
@@ -228,10 +229,13 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
 <script>
 let sb=null,sbA=null,user=null,prof=null,myCust=[],allCust=[],selSt=0,actId=null,allProf=[];
 
-// CONFIG
-function getCfg(){const u=localStorage.getItem('sb_url'),k=localStorage.getItem('sb_key'),s=localStorage.getItem('sb_skey');return(u&&k)?{u,k,s}:null}
-function initSb(){const c=getCfg();if(!c){document.getElementById('config-banner').style.display='block';return false}document.getElementById('config-banner').style.display='none';sb=window.supabase.createClient(c.u,c.k);if(c.s)sbA=window.supabase.createClient(c.u,c.s,{auth:{autoRefreshToken:false,persistSession:false}});return true}
-function saveCfg(){const u=document.getElementById('cu').value.trim().replace(/\/$/,''),k=document.getElementById('ck').value.trim(),s=document.getElementById('cs').value.trim();if(!u||!k)return toast('Fill URL and Key','er');localStorage.setItem('sb_url',u);localStorage.setItem('sb_key',k);if(s)localStorage.setItem('sb_skey',s);else localStorage.removeItem('sb_skey');toast('Saved!','ok');closeM('config-modal');initSb();checkSess()}
+// CONFIG — URL and Anon Key hardcoded (safe, public by design. RLS protects data)
+const SB_URL='https://gzbxjxuzquonhcpicznf.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6YnhqeHV6cXVvbmhjcGljem5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDUzMDIsImV4cCI6MjA5MDg4MTMwMn0.q-8Muz9t4N_Oyd9jIrwsk1MBJ1DzfQi0iRXq-5sgSTo';
+
+function getCfg(){const s=localStorage.getItem('sb_skey');return{u:SB_URL,k:SB_KEY,s}}
+function initSb(){const c=getCfg();if(!c.u||c.u.includes('YOUR_')){document.getElementById('config-banner').style.display='block';return false}document.getElementById('config-banner').style.display='none';sb=window.supabase.createClient(c.u,c.k);if(c.s)sbA=window.supabase.createClient(c.u,c.s,{auth:{autoRefreshToken:false,persistSession:false}});return true}
+function saveCfg(){const s=document.getElementById('cs').value.trim();if(s)localStorage.setItem('sb_skey',s);else localStorage.removeItem('sb_skey');toast('Saved!','ok');closeM('config-modal');initSb();checkSess()}
 
 // AUTH
 async function doLogin(){if(!sb)return toast('Configure Supabase first','er');const e=document.getElementById('le').value.trim(),p=document.getElementById('lp').value;if(!e||!p)return showErr('Fill all fields');const b=document.getElementById('lb');b.disabled=true;b.innerHTML='<span class="sp"></span>';const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});b.disabled=false;b.textContent='Sign In';if(error)return showErr(error.message);enter(data.user)}
@@ -383,20 +387,52 @@ uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('dg')});
 uz.addEventListener('dragleave',()=>uz.classList.remove('dg'));
 uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('dg');const f=e.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('fi').files=dt.files;handleFile({target:document.getElementById('fi')})}});
 
+// ═══════ FETCH ALL (bypass 1000 limit) ═══════
+async function fetchAll(query){
+  let all=[],from=0,size=1000;
+  while(true){
+    const{data,error}=await query.range(from,from+size-1);
+    if(error)throw error;
+    all=all.concat(data||[]);
+    if(!data||data.length<size)break;
+    from+=size;
+  }
+  return all;
+}
+
 // ═══════ CUSTOMERS ═══════
+let mySort='amount_desc'; // default sort
+
 async function loadMy(){
   const d=document.getElementById('df').value;
   let q=sb.from('customers').select('*').eq('uploaded_by',user.id).order('created_at',{ascending:false});
   if(d)q=q.eq('upload_date',d);
-  const{data,error}=await q;if(error)return toast('Error: '+error.message,'er');
-  myCust=data||[];
+  try{myCust=await fetchAll(q)}catch(e){return toast('Error: '+e.message,'er')}
   // Populate category2 filter
   const c2s=new Set();myCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
   const sel=document.getElementById('c2f');const cur=sel.value;sel.innerHTML='<option value="">All Categories</option>';
   [...c2s].sort().forEach(v=>{sel.innerHTML+=`<option value="${esc(v)}">${esc(v)}</option>`});sel.value=cur;
-  renderStats(myCust,'stats');renderTable(myCust,'ctb',false)}
+  // Populate category filter
+  const cats=new Set();myCust.forEach(c=>{if(c.categories)(c.categories).split(', ').forEach(v=>{if(v&&v!=='—')cats.add(v)})});
+  const csel=document.getElementById('c1f');const ccur=csel.value;csel.innerHTML='<option value="">All Types</option>';
+  [...cats].sort().forEach(v=>{csel.innerHTML+=`<option value="${esc(v)}">${esc(v)}</option>`});csel.value=ccur;
+  renderStats(myCust,'stats');applyMyFilters()}
 
-function filterByC2(){const v=document.getElementById('c2f').value;if(!v){renderTable(myCust,'ctb',false);return}renderTable(myCust.filter(c=>(c.category2||'').includes(v)),'ctb',false)}
+function applyMyFilters(){
+  let f=[...myCust];
+  const c2=document.getElementById('c2f').value;
+  const c1=document.getElementById('c1f').value;
+  if(c2)f=f.filter(c=>(c.category2||'').includes(c2));
+  if(c1)f=f.filter(c=>(c.categories||'').includes(c1));
+  // Sort
+  const s=document.getElementById('msort').value;
+  if(s==='amount_desc')f.sort((a,b)=>(b.total_amount||0)-(a.total_amount||0));
+  else if(s==='amount_asc')f.sort((a,b)=>(a.total_amount||0)-(b.total_amount||0));
+  else if(s==='name')f.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  renderTable(f,'ctb',false);
+}
+
+function filterByC2(){applyMyFilters()}
 
 function renderStats(list,id){
   const t=list.length,c=list.filter(x=>x.contacted).length,p=t-c;
@@ -428,7 +464,18 @@ function renderTable(list,id,showEmp){
     </tr>`});
   h+='</tbody></table></div>';document.getElementById(id).innerHTML=h}
 
-function filterMy(q){q=q.toLowerCase();const c2=document.getElementById('c2f').value;let f=myCust;if(c2)f=f.filter(c=>(c.category2||'').includes(c2));if(q)f=f.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.branch||'').toLowerCase().includes(q)||(c.category2||'').toLowerCase().includes(q));renderTable(f,'ctb',false)}
+function filterMy(q){q=q.toLowerCase();
+  let f=[...myCust];
+  const c2=document.getElementById('c2f').value;
+  const c1=document.getElementById('c1f').value;
+  if(c2)f=f.filter(c=>(c.category2||'').includes(c2));
+  if(c1)f=f.filter(c=>(c.categories||'').includes(c1));
+  if(q)f=f.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.branch||'').toLowerCase().includes(q)||(c.category2||'').toLowerCase().includes(q));
+  const s=document.getElementById('msort').value;
+  if(s==='amount_desc')f.sort((a,b)=>(b.total_amount||0)-(a.total_amount||0));
+  else if(s==='amount_asc')f.sort((a,b)=>(a.total_amount||0)-(b.total_amount||0));
+  else if(s==='name')f.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  renderTable(f,'ctb',false)}
 
 // ═══════ ACTIONS ═══════
 function openAct(id,n,p,ct,st,nt){actId=id;document.getElementById('aci').textContent=`${n}  •  ${p}`;document.getElementById('ac').value=ct?'true':'false';document.getElementById('an').value=nt||'';setSt(parseInt(st)||0);openM('action-modal')}
@@ -440,15 +487,31 @@ async function loadAll(){
   const ef=document.getElementById('aef').value,df=document.getElementById('adf').value;
   let q=sb.from('customers').select('*,profiles:uploaded_by(full_name)').order('created_at',{ascending:false});
   if(ef)q=q.eq('uploaded_by',ef);if(df)q=q.eq('upload_date',df);
-  const{data,error}=await q;if(error)return toast('Error: '+error.message,'er');
-  allCust=data||[];
+  try{allCust=await fetchAll(q)}catch(e){return toast('Error: '+e.message,'er')}
   // Populate admin category2 filter
   const c2s=new Set();allCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
   const sel=document.getElementById('ac2f');const cur=sel.value;sel.innerHTML='<option value="">All Categories</option>';
   [...c2s].sort().forEach(v=>{sel.innerHTML+=`<option value="${esc(v)}">${esc(v)}</option>`});sel.value=cur;
-  renderStats(allCust,'astats');renderTable(allCust,'atb',true)}
-function filterAllC2(){const v=document.getElementById('ac2f').value;if(!v){renderTable(allCust,'atb',true);return}renderTable(allCust.filter(c=>(c.category2||'').includes(v)),'atb',true)}
-function filterAll(q){q=q.toLowerCase();renderTable(allCust.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.profiles?.full_name||'').toLowerCase().includes(q)||(c.branch||'').toLowerCase().includes(q)||(c.category2||'').toLowerCase().includes(q)),'atb',true)}
+  renderStats(allCust,'astats');applyAllFilters()}
+function applyAllFilters(){
+  let f=[...allCust];
+  const c2=document.getElementById('ac2f').value;
+  if(c2)f=f.filter(c=>(c.category2||'').includes(c2));
+  const s=document.getElementById('asort').value;
+  if(s==='amount_desc')f.sort((a,b)=>(b.total_amount||0)-(a.total_amount||0));
+  else if(s==='amount_asc')f.sort((a,b)=>(a.total_amount||0)-(b.total_amount||0));
+  else if(s==='name')f.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  renderTable(f,'atb',true)}
+function filterAll(q){q=q.toLowerCase();
+  let f=[...allCust];
+  const c2=document.getElementById('ac2f').value;
+  if(c2)f=f.filter(c=>(c.category2||'').includes(c2));
+  if(q)f=f.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q)||(c.profiles?.full_name||'').toLowerCase().includes(q)||(c.branch||'').toLowerCase().includes(q)||(c.category2||'').toLowerCase().includes(q));
+  const s=document.getElementById('asort').value;
+  if(s==='amount_desc')f.sort((a,b)=>(b.total_amount||0)-(a.total_amount||0));
+  else if(s==='amount_asc')f.sort((a,b)=>(a.total_amount||0)-(b.total_amount||0));
+  else if(s==='name')f.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  renderTable(f,'atb',true)}
 
 // ═══════ USERS (admin) ═══════
 async function loadUsers(){
@@ -472,8 +535,8 @@ function openM(id){document.getElementById(id).classList.add('a')}
 function closeM(id){document.getElementById(id).classList.remove('a')}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('a')}));
 
-// Open config if needed
-(function(){const c=getCfg();if(c){document.getElementById('cu').value=c.u||'';document.getElementById('ck').value=c.k||'';document.getElementById('cs').value=c.s||''}})();
+// Init service key field if saved
+(function(){const s=localStorage.getItem('sb_skey');if(s)document.getElementById('cs').value=s})();
 if(initSb())checkSess();
 </script>
 </body>
