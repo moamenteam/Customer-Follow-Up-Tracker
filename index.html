@@ -149,7 +149,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
     <div class="th">
       <h3>My Customers</h3>
       <div class="tt">
-        <input type="date" class="fs" id="df" onchange="loadMy()">
+        <input type="date" class="fs" id="df" onchange="loadMy()" title="Filter by sale date">
         <select class="fs" id="msort" onchange="applyMyFilters()"><option value="amount_desc">💰 Highest First</option><option value="amount_asc">💰 Lowest First</option><option value="name">🔤 Name A-Z</option></select>
         <select class="fs" id="c1f" onchange="applyMyFilters()"><option value="">All Types</option></select>
         <select class="fs" id="c2f" onchange="applyMyFilters()"><option value="">All Categories</option></select>
@@ -208,6 +208,12 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
   <div class="fg"><label>Email</label><input type="email" id="nue" placeholder="employee@company.com"></div>
   <div class="fg"><label>Password</label><input type="text" id="nup" placeholder="Min 6 characters"></div>
   <div class="fg"><label>Role</label><select id="nur"><option value="employee">Employee</option><option value="admin">Admin</option></select></div>
+  <div class="fg"><label>Visible Tabs</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer"><input type="checkbox" id="nt_upload" checked style="accent-color:var(--accent);width:16px;height:16px"> 📤 Upload</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer"><input type="checkbox" id="nt_customers" checked style="accent-color:var(--accent);width:16px;height:16px"> 📞 My Customers</label>
+    </div>
+  </div>
   <div class="ma"><button class="btn bs" onclick="closeM('newuser-modal')">Cancel</button><button class="btn bp" onclick="createUsr()" id="cub">Create</button></div>
 </div></div>
 
@@ -219,6 +225,12 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
   <div class="fg"><label>Full Name</label><input type="text" id="eun"></div>
   <div class="fg"><label>Role</label><select id="eur"><option value="employee">Employee</option><option value="admin">Admin</option></select></div>
   <div class="fg"><label>Status</label><select id="eua"><option value="true">Active</option><option value="false">Deactivated</option></select></div>
+  <div class="fg"><label>Visible Tabs</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer"><input type="checkbox" id="et_upload" style="accent-color:var(--accent);width:16px;height:16px"> 📤 Upload</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer"><input type="checkbox" id="et_customers" style="accent-color:var(--accent);width:16px;height:16px"> 📞 My Customers</label>
+    </div>
+  </div>
   <div class="ma"><button class="btn bs" onclick="closeM('edituser-modal')">Cancel</button><button class="btn bp" onclick="updateUsr()">Save</button></div>
 </div></div>
 
@@ -251,7 +263,19 @@ async function doLogin(){if(!sb)return toast('Configure Supabase first','er');co
 async function doLogout(){await sb.auth.signOut();user=null;prof=null;document.getElementById('app-page').style.display='none';document.getElementById('login-page').style.display='flex'}
 function showErr(m){const el=document.getElementById('login-error');el.textContent=m;el.style.display='block'}
 async function checkSess(){if(!sb)return;const{data:{session}}=await sb.auth.getSession();if(session)enter(session.user)}
-async function enter(u){user=u;document.getElementById('login-page').style.display='none';document.getElementById('app-page').style.display='block';document.getElementById('login-error').style.display='none';const{data:p}=await sb.from('profiles').select('*').eq('id',u.id).single();prof=p||{full_name:u.email,role:'employee'};const n=prof.full_name||u.email;document.getElementById('un').textContent=n;document.getElementById('ua').textContent=n.charAt(0).toUpperCase();const rt=document.getElementById('ur');rt.textContent=prof.role;rt.className='rt '+prof.role;document.getElementById('df').value=new Date().toISOString().split('T')[0];if(prof.role==='admin'){document.querySelectorAll('.ao').forEach(el=>el.style.display='');document.getElementById('adf').value=new Date().toISOString().split('T')[0];loadUsers();loadAll()}loadMy()}
+async function enter(u){user=u;document.getElementById('login-page').style.display='none';document.getElementById('app-page').style.display='block';document.getElementById('login-error').style.display='none';const{data:p}=await sb.from('profiles').select('*').eq('id',u.id).single();prof=p||{full_name:u.email,role:'employee'};const n=prof.full_name||u.email;document.getElementById('un').textContent=n;document.getElementById('ua').textContent=n.charAt(0).toUpperCase();const rt=document.getElementById('ur');rt.textContent=prof.role;rt.className='rt '+prof.role;document.getElementById('df').value=new Date().toISOString().split('T')[0];
+  // Tab visibility: admin sees all, employees see only their allowed tabs
+  const empTabs=(prof.visible_tabs||'upload,customers').split(',');
+  document.querySelectorAll('.tb[data-tab="upload"],.tb[data-tab="customers"]').forEach(tb=>{
+    if(prof.role==='admin')tb.style.display='';
+    else tb.style.display=empTabs.includes(tb.dataset.tab)?'':'none';
+  });
+  // Auto-select first visible tab
+  if(prof.role!=='admin'){
+    const firstVisible=document.querySelector('.tb:not([style*="none"])');
+    if(firstVisible){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));firstVisible.classList.add('active');document.getElementById('panel-'+firstVisible.dataset.tab).classList.add('active')}
+  }
+  if(prof.role==='admin'){document.querySelectorAll('.ao').forEach(el=>el.style.display='');document.getElementById('adf').value=new Date().toISOString().split('T')[0];loadUsers();loadAll()}loadMy()}
 
 // TABS
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('.tb');if(!b)return;document.querySelectorAll('.tb').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('panel-'+b.dataset.tab).classList.add('active')});
@@ -415,7 +439,7 @@ let mySort='amount_desc'; // default sort
 async function loadMy(){
   const d=document.getElementById('df').value;
   let q=sb.from('customers').select('*').eq('uploaded_by',user.id).order('created_at',{ascending:false});
-  if(d)q=q.eq('upload_date',d);
+  if(d)q=q.eq('sale_date',d);
   try{myCust=await fetchAll(q)}catch(e){return toast('Error: '+e.message,'er')}
   // Populate category2 filter
   const c2s=new Set();myCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
@@ -501,7 +525,7 @@ async function saveAct(){const b=document.getElementById('sab');b.disabled=true;
 async function loadAll(){
   const ef=document.getElementById('aef').value,df=document.getElementById('adf').value;
   let q=sb.from('customers').select('*,profiles:uploaded_by(full_name)').order('created_at',{ascending:false});
-  if(ef)q=q.eq('uploaded_by',ef);if(df)q=q.eq('upload_date',df);
+  if(ef)q=q.eq('uploaded_by',ef);if(df)q=q.eq('sale_date',df);
   try{allCust=await fetchAll(q)}catch(e){return toast('Error: '+e.message,'er')}
   // Populate admin category2 filter
   const c2s=new Set();allCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
@@ -536,11 +560,27 @@ async function loadUsers(){
   renderUsers()}
 function renderUsers(){
   const c=document.getElementById('ucards');if(!allProf.length){c.innerHTML='<div class="es"><div class="ei">👥</div><h3>No users</h3></div>';return}
-  c.innerHTML=allProf.map(p=>`<div class="ucrd"><div class="ucrd-t"><div class="ucrd-av">${(p.full_name||'?').charAt(0).toUpperCase()}</div><div class="ucrd-i"><div class="nm">${esc(p.full_name)}</div><div class="em">${esc(p.id.substring(0,8))}...</div></div><span class="rt ${p.role}">${p.role}</span></div><div style="display:flex;align-items:center;justify-content:space-between"><span class="ab ${p.is_active!==false?'ac':'in'}">${p.is_active!==false?'● Active':'● Inactive'}</span><button class="btn bs bsm" onclick="openEdit('${p.id}')">✏️</button></div></div>`).join('')}
-function openNewUser(){if(!sbA)return toast('Add Service Role Key in ⚙️','er');['nun','nue','nup'].forEach(id=>document.getElementById(id).value='');document.getElementById('nur').value='employee';openM('newuser-modal')}
-async function createUsr(){if(!sbA)return toast('Service Role Key needed','er');const n=document.getElementById('nun').value.trim(),e=document.getElementById('nue').value.trim(),p=document.getElementById('nup').value,r=document.getElementById('nur').value;if(!n||!e||!p)return toast('Fill all fields','er');if(p.length<6)return toast('Password 6+ chars','er');const b=document.getElementById('cub');b.disabled=true;b.innerHTML='<span class="sp"></span>';const{error}=await sbA.auth.admin.createUser({email:e,password:p,email_confirm:true,user_metadata:{full_name:n,role:r}});b.disabled=false;b.textContent='Create';if(error)return toast('Error: '+error.message,'er');toast(`✅ ${n} created!`,'ok');closeM('newuser-modal');loadUsers()}
-function openEdit(uid){const p=allProf.find(u=>u.id===uid);if(!p)return;document.getElementById('euid').value=uid;document.getElementById('eun').value=p.full_name;document.getElementById('eur').value=p.role;document.getElementById('eua').value=(p.is_active!==false).toString();openM('edituser-modal')}
-async function updateUsr(){const uid=document.getElementById('euid').value;const{error}=await sb.from('profiles').update({full_name:document.getElementById('eun').value.trim(),role:document.getElementById('eur').value,is_active:document.getElementById('eua').value==='true'}).eq('id',uid);if(error)return toast('Error: '+error.message,'er');toast('Updated!','ok');closeM('edituser-modal');loadUsers()}
+  c.innerHTML=allProf.map(p=>{
+    const tabs=(p.visible_tabs||'upload,customers').split(',');
+    const tabBadges=tabs.map(t=>t==='upload'?'📤':'📞').join(' ');
+    return`<div class="ucrd"><div class="ucrd-t"><div class="ucrd-av">${(p.full_name||'?').charAt(0).toUpperCase()}</div><div class="ucrd-i"><div class="nm">${esc(p.full_name)}</div><div class="em">${esc(p.id.substring(0,8))}...</div></div><span class="rt ${p.role}">${p.role}</span></div><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;gap:6px;align-items:center"><span class="ab ${p.is_active!==false?'ac':'in'}">${p.is_active!==false?'● Active':'● Inactive'}</span><span style="font-size:11px;color:var(--t2)">Tabs: ${tabBadges}</span></div><button class="btn bs bsm" onclick="openEdit('${p.id}')">✏️</button></div></div>`}).join('')}
+function openNewUser(){if(!sbA)return toast('Add Service Role Key in ⚙️','er');['nun','nue','nup'].forEach(id=>document.getElementById(id).value='');document.getElementById('nur').value='employee';document.getElementById('nt_upload').checked=true;document.getElementById('nt_customers').checked=true;openM('newuser-modal')}
+async function createUsr(){if(!sbA)return toast('Service Role Key needed','er');const n=document.getElementById('nun').value.trim(),e=document.getElementById('nue').value.trim(),p=document.getElementById('nup').value,r=document.getElementById('nur').value;if(!n||!e||!p)return toast('Fill all fields','er');if(p.length<6)return toast('Password 6+ chars','er');
+  const tabs=[];if(document.getElementById('nt_upload').checked)tabs.push('upload');if(document.getElementById('nt_customers').checked)tabs.push('customers');
+  const b=document.getElementById('cub');b.disabled=true;b.innerHTML='<span class="sp"></span>';
+  const{data:usr,error}=await sbA.auth.admin.createUser({email:e,password:p,email_confirm:true,user_metadata:{full_name:n,role:r}});
+  if(error){b.disabled=false;b.textContent='Create';return toast('Error: '+error.message,'er')}
+  // Update visible_tabs in profile
+  await sb.from('profiles').update({visible_tabs:tabs.join(',')}).eq('id',usr.user.id);
+  b.disabled=false;b.textContent='Create';toast(`✅ ${n} created!`,'ok');closeM('newuser-modal');loadUsers()}
+function openEdit(uid){const p=allProf.find(u=>u.id===uid);if(!p)return;document.getElementById('euid').value=uid;document.getElementById('eun').value=p.full_name;document.getElementById('eur').value=p.role;document.getElementById('eua').value=(p.is_active!==false).toString();
+  const tabs=(p.visible_tabs||'upload,customers').split(',');
+  document.getElementById('et_upload').checked=tabs.includes('upload');
+  document.getElementById('et_customers').checked=tabs.includes('customers');
+  openM('edituser-modal')}
+async function updateUsr(){const uid=document.getElementById('euid').value;
+  const tabs=[];if(document.getElementById('et_upload').checked)tabs.push('upload');if(document.getElementById('et_customers').checked)tabs.push('customers');
+  const{error}=await sb.from('profiles').update({full_name:document.getElementById('eun').value.trim(),role:document.getElementById('eur').value,is_active:document.getElementById('eua').value==='true',visible_tabs:tabs.join(',')}).eq('id',uid);if(error)return toast('Error: '+error.message,'er');toast('Updated!','ok');closeM('edituser-modal');loadUsers()}
 
 // ═══════ HELPERS ═══════
 function stHtml(n){let h='<div class="sd">';for(let i=1;i<=5;i++)h+=`<span class="s ${i<=n?'a':''}">★</span>`;return h+'</div>'}
