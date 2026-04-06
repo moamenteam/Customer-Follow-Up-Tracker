@@ -54,7 +54,7 @@ table th{text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-tr
 table td{padding:10px 14px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
 table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hover)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:16px;font-size:10px;font-weight:600}
-.badge.y{background:var(--okbg);color:var(--ok)}.badge.n{background:var(--nobg);color:var(--no)}
+.badge.y{background:var(--okbg);color:var(--ok)}.badge.n{background:var(--nobg);color:var(--no)}.badge.na{background:rgba(254,202,87,.12);color:var(--warn)}
 .badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
 .stars{display:flex;gap:2px}.stars .s{cursor:pointer;font-size:20px;color:var(--border);transition:color .15s,transform .15s;user-select:none}.stars .s.a{color:var(--warn)}.stars .s:hover{transform:scale(1.15)}
 .sd{display:flex;gap:1px}.sd .s{font-size:13px;color:var(--border)}.sd .s.a{color:var(--warn)}
@@ -136,6 +136,15 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
 <!-- MY CUSTOMERS -->
 <div class="tp" id="panel-customers">
   <div class="sr" id="stats"></div>
+  <div style="background:linear-gradient(135deg,rgba(108,92,231,.08),rgba(0,206,201,.06));border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;direction:rtl;text-align:right">
+    <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:10px">💡 ذكّر العميل بخدماتنا:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span style="background:var(--card);border:1px solid var(--border);padding:6px 14px;border-radius:20px;font-size:12px;color:var(--t1)">📋 خدمة وصفتي</span>
+      <span style="background:var(--card);border:1px solid var(--border);padding:6px 14px;border-radius:20px;font-size:12px;color:var(--t1)">🚚 خدمة التوصيل المنزلي</span>
+      <span style="background:var(--card);border:1px solid var(--border);padding:6px 14px;border-radius:20px;font-size:12px;color:var(--t1)">🩺 خدمة الاستشارات المرئية</span>
+      <span style="background:var(--card);border:1px solid var(--border);padding:6px 14px;border-radius:20px;font-size:12px;color:var(--t1)">🧪 خدمة التحاليل المنزلية</span>
+    </div>
+  </div>
   <div class="tw">
     <div class="th">
       <h3>My Customers</h3>
@@ -185,7 +194,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
 <div class="md">
   <h2>📞 Record Follow-Up</h2>
   <div id="aci" style="color:var(--t2);margin-bottom:16px;font-size:13px"></div>
-  <div class="fg"><label>Contacted?</label><select id="ac"><option value="false">❌ Not Contacted</option><option value="true">✅ Contacted</option></select></div>
+  <div class="fg"><label>Contacted?</label><select id="ac"><option value="false">❌ Not Contacted</option><option value="true">✅ Contacted</option><option value="no_answer">📵 No Answer</option></select></div>
   <div class="fg"><label>Guest Rating</label><div class="stars" id="as"><span class="s" onclick="setSt(1)">★</span><span class="s" onclick="setSt(2)">★</span><span class="s" onclick="setSt(3)">★</span><span class="s" onclick="setSt(4)">★</span><span class="s" onclick="setSt(5)">★</span></div></div>
   <div class="fg"><label>Notes</label><textarea id="an" rows="3" placeholder="Any notes..."></textarea></div>
   <div class="ma"><button class="btn bs" onclick="closeM('action-modal')">Cancel</button><button class="btn bok" onclick="saveAct()" id="sab">Save</button></div>
@@ -435,12 +444,15 @@ function applyMyFilters(){
 function filterByC2(){applyMyFilters()}
 
 function renderStats(list,id){
-  const t=list.length,c=list.filter(x=>x.contacted).length,p=t-c;
+  const t=list.length,c=list.filter(x=>x.contact_status==='true'||x.contacted).length;
+  const na=list.filter(x=>x.contact_status==='no_answer').length;
+  const p=t-c-na;
   const r=list.filter(x=>x.stars);const avg=r.length?(r.reduce((s,x)=>s+x.stars,0)/r.length).toFixed(1):'—';
   const totalSales=list.reduce((s,x)=>s+(x.total_amount||0),0);
   document.getElementById(id).innerHTML=`
   <div class="sc"><div class="sl">Customers</div><div class="sv pu">${t}</div></div>
   <div class="sc"><div class="sl">Contacted</div><div class="sv gr">${c}</div></div>
+  <div class="sc"><div class="sl">No Answer</div><div class="sv ye">${na}</div></div>
   <div class="sc"><div class="sl">Pending</div><div class="sv re">${p}</div></div>
   <div class="sc"><div class="sl">Avg Rating</div><div class="sv ye">${avg}</div></div>
   <div class="sc"><div class="sl">Total Sales</div><div class="sv ye">${totalSales.toFixed(0)} SAR</div></div>`}
@@ -449,6 +461,9 @@ function renderTable(list,id,showEmp){
   if(!list.length){document.getElementById(id).innerHTML='<div class="es"><div class="ei">📭</div><h3>No customers</h3></div>';return}
   let h=`<div style="overflow-x:auto"><table><thead><tr><th>#</th>${showEmp?'<th>Employee</th>':''}<th>Name</th><th>Phone</th><th>Branch</th><th>Amount</th><th>Cat 2</th><th>Status</th><th>Rating</th><th>Notes</th><th>Action</th></tr></thead><tbody>`;
   list.forEach((c,i)=>{
+    const cs=c.contact_status||(c.contacted?'true':'false');
+    const badgeCls=cs==='true'?'y':cs==='no_answer'?'na':'n';
+    const badgeTxt=cs==='true'?'✅ Done':cs==='no_answer'?'📵 No Answer':'⏳ Pending';
     h+=`<tr>
     <td style="color:var(--tm)">${i+1}</td>
     ${showEmp?`<td style="font-weight:500;color:var(--accent)">${esc(c.profiles?.full_name||c.cashier||'—')}</td>`:''}
@@ -457,10 +472,10 @@ function renderTable(list,id,showEmp){
     <td><span class="brn">${esc(c.branch||'—')}</span></td>
     <td class="amt">${c.total_amount?Number(c.total_amount).toFixed(2):'—'}</td>
     <td class="nc" title="${esc(c.category2||'')}">${esc(c.category2||'—')}</td>
-    <td><span class="badge ${c.contacted?'y':'n'}"><span class="dot"></span>${c.contacted?'Done':'Pending'}</span></td>
+    <td><span class="badge ${badgeCls}"><span class="dot"></span>${badgeTxt}</span></td>
     <td>${stHtml(c.stars||0)}</td>
     <td class="nc" title="${esc(c.notes||'')}">${esc(c.notes||'—')}</td>
-    <td><button class="btn bp bsm" onclick="openAct(${c.id},'${esc(c.name)}','${esc(c.phone)}',${!!c.contacted},${c.stars||0},\`${esc(c.notes||'')}\`)">✏️</button></td>
+    <td><button class="btn bp bsm" onclick="openAct(${c.id},'${esc(c.name)}','${esc(c.phone)}','${cs}',${c.stars||0},\`${esc(c.notes||'')}\`)">✏️</button></td>
     </tr>`});
   h+='</tbody></table></div>';document.getElementById(id).innerHTML=h}
 
@@ -478,9 +493,9 @@ function filterMy(q){q=q.toLowerCase();
   renderTable(f,'ctb',false)}
 
 // ═══════ ACTIONS ═══════
-function openAct(id,n,p,ct,st,nt){actId=id;document.getElementById('aci').textContent=`${n}  •  ${p}`;document.getElementById('ac').value=ct?'true':'false';document.getElementById('an').value=nt||'';setSt(parseInt(st)||0);openM('action-modal')}
+function openAct(id,n,p,cs,st,nt){actId=id;document.getElementById('aci').textContent=`${n}  •  ${p}`;document.getElementById('ac').value=cs||'false';document.getElementById('an').value=nt||'';setSt(parseInt(st)||0);openM('action-modal')}
 function setSt(n){selSt=n;document.querySelectorAll('#as .s').forEach((s,i)=>s.classList.toggle('a',i<n))}
-async function saveAct(){const b=document.getElementById('sab');b.disabled=true;b.innerHTML='<span class="sp"></span>';const{error}=await sb.from('customers').update({contacted:document.getElementById('ac').value==='true',stars:selSt||null,notes:document.getElementById('an').value.trim()||null,action_at:new Date().toISOString()}).eq('id',actId);b.disabled=false;b.textContent='Save';if(error)return toast('Error: '+error.message,'er');toast('Saved!','ok');closeM('action-modal');loadMy();if(prof.role==='admin')loadAll()}
+async function saveAct(){const b=document.getElementById('sab');b.disabled=true;b.innerHTML='<span class="sp"></span>';const status=document.getElementById('ac').value;const{error}=await sb.from('customers').update({contacted:status==='true',contact_status:status,stars:selSt||null,notes:document.getElementById('an').value.trim()||null,action_at:new Date().toISOString()}).eq('id',actId);b.disabled=false;b.textContent='Save';if(error)return toast('Error: '+error.message,'er');toast('Saved!','ok');closeM('action-modal');loadMy();if(prof.role==='admin')loadAll()}
 
 // ═══════ ALL DATA (admin) ═══════
 async function loadAll(){
