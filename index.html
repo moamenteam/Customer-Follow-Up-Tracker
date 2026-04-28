@@ -93,7 +93,7 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
 <div class="tc" id="toasts"></div>
 
 <!-- LOGIN -->
-<div id="login-page">
+<div id="login-page" style="display:none">
 <div class="login-box">
   <div class="logo">📋 FollowUp</div>
   <div class="sub">Customer Follow-Up Tracker</div>
@@ -247,9 +247,32 @@ table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hov
   <div class="ma"><button class="btn bs" onclick="closeM('config-modal')">Cancel</button><button class="btn bp" onclick="saveCfg()" style="width:auto">Save</button></div>
 </div></div>
 
+<!-- Loading screen -->
+<div id="loading-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1117">
+  <div style="text-align:center">
+    <div style="font-size:32px;margin-bottom:12px">📋</div>
+    <div style="color:#8b8fa3;font-size:14px">Loading...</div>
+  </div>
+</div>
+
 <!-- SheetJS for Excel parsing -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+function loadScript(url){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=url;s.onload=resolve;s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+window._cdnReady=Promise.all([
+  loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'),
+  loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js')
+]).then(()=>{
+  document.getElementById('loading-screen').style.display='none';
+}).catch(()=>{
+  document.getElementById('loading-screen').innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="color:#ff6b6b;font-size:14px">Failed to load. Check internet and refresh.</div></div>';
+});
+</script>
 
 <script>
 let sb=null,sbA=null,user=null,prof=null,myCust=[],allCust=[],selSt=0,actId=null,allProf=[];
@@ -296,6 +319,7 @@ function handleFile(event){
 }
 
 function processFile(file){
+  if(typeof XLSX==='undefined')return toast('Still loading, try again in a moment','er');
   const reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -617,12 +641,20 @@ function openM(id){document.getElementById(id).classList.add('a')}
 function closeM(id){document.getElementById(id).classList.remove('a')}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('a')}));
 
-// Init service key field if saved
+// Init — wait for CDN scripts to load first
 try{const s=localStorage.getItem('sb_skey');if(s){const el=document.getElementById('cs');if(el)el.value=s}}catch(e){}
-try{
-  if(typeof window.supabase==='undefined'){document.getElementById('config-banner').style.display='block';document.getElementById('config-banner').textContent='⚠️ Failed to load Supabase SDK. Check your internet connection and refresh.'}
-  else if(initSb())checkSess();
-}catch(e){console.error('Init error:',e)}
+window._cdnReady.then(()=>{
+  if(initSb()){
+    checkSess().then(()=>{
+      // If still on login page (no session found), make it visible
+      if(document.getElementById('app-page').style.display!=='block'){
+        document.getElementById('login-page').style.display='flex';
+      }
+    });
+  }else{
+    document.getElementById('login-page').style.display='flex';
+  }
+}).catch(()=>{});
 </script>
 </body>
 </html>
