@@ -276,7 +276,8 @@ async function enter(u){user=u;document.getElementById('login-page').style.displ
     if(btn)btn.style.display=userTabs.includes(t)?'':'none';
   });
   // Show ⚙️ button only if user has 'users' tab
-  document.querySelector('.btn.bs.bsm.ao').style.display=userTabs.includes('users')?'':'none';
+  const cfgBtn=document.querySelector('.btn.bs.bsm.ao');
+  if(cfgBtn)cfgBtn.style.display=userTabs.includes('users')?'':'none';
   // Auto-select first visible tab
   const firstVisible=document.querySelector('.tb:not([style*="none"])');
   if(firstVisible){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));firstVisible.classList.add('active');document.getElementById('panel-'+firstVisible.dataset.tab).classList.add('active')}
@@ -291,6 +292,10 @@ document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.cl
 // ═══════ JULEB EXCEL PARSER ═══════
 function handleFile(event){
   const file=event.target.files[0];if(!file)return;
+  processFile(file);
+}
+
+function processFile(file){
   const reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -298,17 +303,32 @@ function handleFile(event){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
       
-      // Find header row (look for 'Phone' and 'Customer' in same row)
+      // Find header row (look for cells containing 'Phone' and 'Customer')
       let headerIdx=-1;
       for(let i=0;i<Math.min(30,raw.length);i++){
         const row=raw[i];
-        if(!row)continue;
-        const rowStr=row.map(c=>String(c||'').toLowerCase());
-        if(rowStr.includes('phone')&&rowStr.includes('customer')){headerIdx=i;break}
+        if(!row||!row.length)continue;
+        let hasPhone=false,hasCust=false;
+        for(let j=0;j<row.length;j++){
+          if(row[j]==null)continue;
+          const v=String(row[j]).toLowerCase().trim();
+          if(v==='phone'||v==='phone number'||v==='mobile')hasPhone=true;
+          if(v==='customer'||v==='customer name'||v==='name')hasCust=true;
+        }
+        if(hasPhone&&hasCust){headerIdx=i;break}
       }
       
       if(headerIdx===-1){
-        // Fallback: try simple CSV with name/phone
+        // Try to find any row with 'phone' to help debug
+        let foundCols='';
+        for(let i=0;i<Math.min(20,raw.length);i++){
+          const row=raw[i];if(!row)continue;
+          for(let j=0;j<row.length;j++){
+            if(row[j]!=null){const v=String(row[j]).toLowerCase().trim();
+              if(v.includes('phone')||v.includes('customer')||v.includes('name')){foundCols+=`Row ${i}: "${row[j]}" | `;}}
+          }
+        }
+        if(foundCols)return toast('Found columns but not in same row: '+foundCols,'er');
         return parseSimpleCSV(raw);
       }
       
@@ -317,8 +337,8 @@ function handleFile(event){
       const colMap={};
       headers.forEach((h,i)=>{
         const lh=h.toLowerCase();
-        if(lh==='customer')colMap.customer=i;
-        if(lh==='phone')colMap.phone=i;
+        if(lh==='customer'||lh==='customer name')colMap.customer=i;
+        if(lh==='phone'||lh==='phone number'||lh==='mobile')colMap.phone=i;
         if(lh==='branch name')colMap.branch=i;
         if(lh==='cashier')colMap.cashier=i;
         if(lh==='session start date')colMap.date=i;
@@ -426,7 +446,7 @@ async function confirmUpload(){
 const uz=document.getElementById('uzone');
 uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('dg')});
 uz.addEventListener('dragleave',()=>uz.classList.remove('dg'));
-uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('dg');const f=e.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('fi').files=dt.files;handleFile({target:document.getElementById('fi')})}});
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('dg');const f=e.dataTransfer.files[0];if(f)processFile(f)});
 
 // ═══════ FETCH ALL (bypass 1000 limit) ═══════
 async function fetchAll(query){
@@ -598,8 +618,11 @@ function closeM(id){document.getElementById(id).classList.remove('a')}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('a')}));
 
 // Init service key field if saved
-(function(){const s=localStorage.getItem('sb_skey');if(s)document.getElementById('cs').value=s})();
-if(initSb())checkSess();
+try{const s=localStorage.getItem('sb_skey');if(s){const el=document.getElementById('cs');if(el)el.value=s}}catch(e){}
+try{
+  if(typeof window.supabase==='undefined'){document.getElementById('config-banner').style.display='block';document.getElementById('config-banner').textContent='⚠️ Failed to load Supabase SDK. Check your internet connection and refresh.'}
+  else if(initSb())checkSess();
+}catch(e){console.error('Init error:',e)}
 </script>
 </body>
 </html>
