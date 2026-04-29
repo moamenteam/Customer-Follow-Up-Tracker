@@ -54,7 +54,7 @@ table th{text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-tr
 table td{padding:10px 14px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
 table tr:last-child td{border-bottom:none}table tr:hover td{background:var(--hover)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:16px;font-size:10px;font-weight:600}
-.badge.y{background:var(--okbg);color:var(--ok)}.badge.n{background:var(--nobg);color:var(--no)}.badge.na{background:rgba(254,202,87,.12);color:var(--warn)}
+.badge.y{background:var(--okbg);color:var(--ok)}.badge.n{background:var(--nobg);color:var(--no)}.badge.na{background:rgba(254,202,87,.12);color:var(--warn)}.badge.ot{background:rgba(108,92,231,.12);color:var(--accent);font-style:italic}
 .badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
 .stars{display:flex;gap:2px}.stars .s{cursor:pointer;font-size:20px;color:var(--border);transition:color .15s,transform .15s;user-select:none}.stars .s.a{color:var(--warn)}.stars .s:hover{transform:scale(1.15)}
 .sd{display:flex;gap:1px}.sd .s{font-size:13px;color:var(--border)}.sd .s.a{color:var(--warn)}
@@ -275,7 +275,7 @@ window._cdnReady=Promise.all([
 </script>
 
 <script>
-let sb=null,sbA=null,user=null,prof=null,myCust=[],allCust=[],selSt=0,actId=null,allProf=[];
+let sb=null,sbA=null,user=null,prof=null,myCust=[],allCust=[],selSt=0,actId=null,allProf=[],actionedPhones={};
 
 // CONFIG — URL and Anon Key hardcoded (safe, public by design. RLS protects data)
 const SB_URL='https://gzbxjxuzquonhcpicznf.supabase.co';
@@ -493,6 +493,12 @@ async function loadMy(){
   let q=sb.from('customers').select('*').eq('uploaded_by',user.id).order('created_at',{ascending:false});
   if(d)q=q.eq('sale_date',d);
   try{myCust=await fetchAll(q)}catch(e){return toast('Error: '+e.message,'er')}
+  // Fetch actions by ALL employees (cross-visibility)
+  try{
+    const{data:ap}=await sb.rpc('get_actioned_phones');
+    actionedPhones={};
+    if(ap)ap.forEach(a=>{actionedPhones[a.phone]={status:a.contact_status,by:a.contacted_by,at:a.action_at}});
+  }catch(e){actionedPhones={}}
   // Populate category2 filter
   const c2s=new Set();myCust.forEach(c=>{if(c.category2)(c.category2).split(', ').forEach(v=>{if(v&&v!=='—')c2s.add(v)})});
   const sel=document.getElementById('c2f');const cur=sel.value;sel.innerHTML='<option value="">All Categories</option>';
@@ -522,25 +528,36 @@ function filterByC2(){applyMyFilters()}
 function renderStats(list,id){
   const t=list.length,c=list.filter(x=>x.contact_status==='true'||x.contacted).length;
   const na=list.filter(x=>x.contact_status==='no_answer').length;
-  const p=t-c-na;
+  const byOth=list.filter(x=>{const own=x.contact_status||(x.contacted?'true':'false');if(own==='true'||own==='no_answer')return false;const o=actionedPhones[x.phone];return o&&o.status!=='false'&&o.status!=='pending'}).length;
+  const p=t-c-na-byOth;
   const r=list.filter(x=>x.stars);const avg=r.length?(r.reduce((s,x)=>s+x.stars,0)/r.length).toFixed(1):'—';
   const totalSales=list.reduce((s,x)=>s+(x.total_amount||0),0);
   document.getElementById(id).innerHTML=`
   <div class="sc"><div class="sl">Customers</div><div class="sv pu">${t}</div></div>
   <div class="sc"><div class="sl">Contacted</div><div class="sv gr">${c}</div></div>
   <div class="sc"><div class="sl">No Answer</div><div class="sv ye">${na}</div></div>
+  <div class="sc"><div class="sl">By Others</div><div class="sv" style="color:var(--accent)">${byOth}</div></div>
   <div class="sc"><div class="sl">Pending</div><div class="sv re">${p}</div></div>
-  <div class="sc"><div class="sl">Avg Rating</div><div class="sv ye">${avg}</div></div>
   <div class="sc"><div class="sl">Total Sales</div><div class="sv ye">${totalSales.toFixed(0)} SAR</div></div>`}
 
 function renderTable(list,id,showEmp){
   if(!list.length){document.getElementById(id).innerHTML='<div class="es"><div class="ei">📭</div><h3>No customers</h3></div>';return}
   let h=`<div style="overflow-x:auto"><table><thead><tr><th>#</th>${showEmp?'<th>Employee</th>':''}<th>Name</th><th>Phone</th><th>Branch</th><th>Amount</th><th>Cat 2</th><th>Status</th><th>Rating</th><th>Notes</th><th>Action</th></tr></thead><tbody>`;
   list.forEach((c,i)=>{
-    const cs=c.contact_status||(c.contacted?'true':'false');
-    const badgeCls=cs==='true'?'y':cs==='no_answer'?'na':'n';
-    const badgeTxt=cs==='true'?'✅ Done':cs==='no_answer'?'📵 No Answer':'⏳ Pending';
-    h+=`<tr>
+    // Check own status first, then cross-employee
+    const ownStatus=c.contact_status||(c.contacted?'true':'false');
+    const other=actionedPhones[c.phone];
+    const otherDone=other&&other.status!=='false'&&other.status!=='pending';
+
+    let badgeCls,badgeTxt;
+    if(ownStatus==='true'){badgeCls='y';badgeTxt='✅ Done';}
+    else if(ownStatus==='no_answer'){badgeCls='na';badgeTxt='📵 No Answer';}
+    else if(otherDone){badgeCls='ot';badgeTxt=`✅ by ${esc(other.by||'other')}`;}
+    else{badgeCls='n';badgeTxt='⏳ Pending';}
+
+    const rowStyle=otherDone&&ownStatus!=='true'&&ownStatus!=='no_answer'?' style="opacity:0.5"':'';
+
+    h+=`<tr${rowStyle}>
     <td style="color:var(--tm)">${i+1}</td>
     ${showEmp?`<td style="font-weight:500;color:var(--accent)">${esc(c.profiles?.full_name||c.cashier||'—')}</td>`:''}
     <td style="font-weight:600">${esc(c.name)}</td>
@@ -551,7 +568,7 @@ function renderTable(list,id,showEmp){
     <td><span class="badge ${badgeCls}"><span class="dot"></span>${badgeTxt}</span></td>
     <td>${stHtml(c.stars||0)}</td>
     <td class="nc" title="${esc(c.notes||'')}">${esc(c.notes||'—')}</td>
-    <td><button class="btn bp bsm" onclick="openAct(${c.id},'${esc(c.name)}','${esc(c.phone)}','${cs}',${c.stars||0},\`${esc(c.notes||'')}\`)">✏️</button></td>
+    <td>${otherDone&&ownStatus!=='true'&&ownStatus!=='no_answer'?'<span style="font-size:11px;color:var(--tm)">Done</span>':`<button class="btn bp bsm" onclick="openAct(${c.id},'${esc(c.name)}','${esc(c.phone)}','${ownStatus}',${c.stars||0},\`${esc(c.notes||'')}\`)">✏️</button>`}</td>
     </tr>`});
   h+='</tbody></table></div>';document.getElementById(id).innerHTML=h}
 
