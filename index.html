@@ -305,7 +305,7 @@ async function doLogin(){if(!sb)return toast('Configure Supabase first','er');co
 async function doLogout(){await sb.auth.signOut();user=null;prof=null;document.getElementById('app-page').style.display='none';document.getElementById('login-page').style.display='flex'}
 function showErr(m){const el=document.getElementById('login-error');el.textContent=m;el.style.display='block'}
 async function checkSess(){if(!sb)return;const{data:{session}}=await sb.auth.getSession();if(session)enter(session.user)}
-async function enter(u){user=u;document.getElementById('login-page').style.display='none';document.getElementById('app-page').style.display='block';document.getElementById('login-error').style.display='none';const{data:p}=await sb.from('profiles').select('*').eq('id',u.id).single();prof=p||{full_name:u.email,role:'employee'};const n=prof.full_name||u.email;document.getElementById('un').textContent=n;document.getElementById('ua').textContent=n.charAt(0).toUpperCase();const rt=document.getElementById('ur');rt.textContent=prof.role;rt.className='rt '+prof.role;document.getElementById('df').value=new Date().toISOString().split('T')[0];
+async function enter(u){user=u;document.getElementById('login-page').style.display='none';document.getElementById('app-page').style.display='block';document.getElementById('login-error').style.display='none';const{data:p}=await sb.from('profiles').select('*').eq('id',u.id).single();prof=p||{full_name:u.email,role:'employee'};const n=prof.full_name||u.email;document.getElementById('un').textContent=n;document.getElementById('ua').textContent=n.charAt(0).toUpperCase();const rt=document.getElementById('ur');rt.textContent=prof.role;rt.className='rt '+prof.role;document.getElementById('df').value='';
   const allTabs=['upload','customers','alldata','users'];
   const userTabs=prof.role==='admin'?allTabs:(prof.visible_tabs||'upload,customers').split(',');
   allTabs.forEach(t=>{
@@ -316,7 +316,7 @@ async function enter(u){user=u;document.getElementById('login-page').style.displ
   if(cfgBtn)cfgBtn.style.display=userTabs.includes('users')?'':'none';
   const firstVisible=document.querySelector('.tb:not([style*="none"])');
   if(firstVisible){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));firstVisible.classList.add('active');document.getElementById('panel-'+firstVisible.dataset.tab).classList.add('active')}
-  if(userTabs.includes('alldata')){document.getElementById('adf').value=new Date().toISOString().split('T')[0];loadAll()}
+  if(userTabs.includes('alldata')){document.getElementById('adf').value='';loadAll()}
   if(userTabs.includes('users'))loadUsers();
   loadMy()}
 
